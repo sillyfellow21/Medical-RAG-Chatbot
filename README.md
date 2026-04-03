@@ -128,3 +128,14 @@ open up localhost:
    - ECR_REPO
    - PINECONE_API_KEY
    - OPENAI_API_KEY
+## Acknowledgments and Credits
+
+This project was built upon the foundational architecture and codebase provided by [entbappy](https://github.com/entbappy). 
+
+* **Original Project:** [Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS](https://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS)
+* Modifications made in this version include:
+  * Swapped original APIs for [insert your API choices].
+  * Refactored frontend and backend logic.
+  * [Add any other major changes you made].
+
+A huge thank you to the original author for providing a great starting point!
