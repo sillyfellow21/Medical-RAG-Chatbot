@@ -7,6 +7,9 @@ from src.config import Settings, get_settings
 from src.rag_pipeline import build_rag_chain, build_retriever
 
 
+APP_BUILD = "2026-04-08-rko-debug-1"
+
+
 SECRET_KEY_ALIASES = {
     "PINECONE_API_KEY": [
         "PINECONE_API_KEY",
@@ -183,6 +186,7 @@ def main() -> None:
     st.caption("Ask medical questions over your indexed PDF knowledge base.")
 
     with st.sidebar:
+        st.caption(f"Build: {APP_BUILD}")
         st.subheader("Run Checklist")
         st.markdown(
             "1. Set PINECONE_API_KEY and OPENAI_API_KEY in Streamlit Secrets"
