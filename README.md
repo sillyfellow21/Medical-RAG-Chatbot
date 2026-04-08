@@ -1,12 +1,33 @@
 # Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
 
+This implementation keeps the same end-to-end behavior as the original project
+(Flask + LangChain + OpenAI + Pinecone medical RAG chatbot) while using a
+slightly different internal code structure for maintainability.
+
+## Project Structure
+
+```text
+.
+|- app.py                    # Flask runtime entrypoint
+|- store_index.py            # Vector index build entrypoint
+|- src/
+|  |- config.py              # .env loading and runtime settings
+|  |- helper.py              # PDF loading, filtering, splitting, embeddings
+|  |- index_builder.py       # Pinecone index creation + document upsert
+|  |- prompt.py              # System prompt for the assistant
+|  |- rag_pipeline.py        # Retriever + LLM RAG chain assembly
+|  |- webapp.py              # Flask app factory and routes
+|- templates/chat.html       # Chat UI
+|- static/style.css          # Chat styles
+```
+
 # How to run?
 ### STEPS:
 
 Clone the repository
 
 ```bash
-git clonehttps://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS.git
+git clone https://github.com/sillyfellow21/Medical-RAG-Chatbot.git
 ```
 ### STEP 01- Create a conda environment after opening the repository
 
