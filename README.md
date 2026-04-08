@@ -88,6 +88,20 @@ OPENAI_API_KEY="your_key"
 
 4. Reboot the app after changing Main file path or secrets.
 
+### If you still see "Missing PINECONE_API_KEY"
+
+1. Open the app sidebar and expand "Key diagnostics".
+2. Confirm `secrets:any_alias:PINECONE_API_KEY` is `True`.
+3. If `False`, set secrets exactly as:
+
+```toml
+PINECONE_API_KEY="your_pinecone_key"
+OPENAI_API_KEY="your_openai_key"
+```
+
+4. Save secrets and reboot the app again.
+5. Click "Clear chat history" in the sidebar to remove stale messages.
+
 Now,
 ```bash
 open up localhost:

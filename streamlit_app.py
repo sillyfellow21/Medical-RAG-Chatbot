@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 
 import streamlit as st
 
@@ -6,13 +7,51 @@ from src.config import Settings, get_settings
 from src.rag_pipeline import build_rag_chain, build_retriever
 
 
+SECRET_KEY_ALIASES = {
+    "PINECONE_API_KEY": [
+        "PINECONE_API_KEY",
+        "pinecone_api_key",
+        "PINECONE_KEY",
+        "pinecone_key",
+    ],
+    "OPENAI_API_KEY": [
+        "OPENAI_API_KEY",
+        "openai_api_key",
+        "OPENAI_KEY",
+        "openai_key",
+    ],
+}
+
+
+def _norm_key(value: str) -> str:
+    return "".join(ch.lower() for ch in value if ch.isalnum())
+
+
+def _iter_secret_items(data):
+    if isinstance(data, Mapping):
+        for key, value in data.items():
+            yield str(key), value
+            yield from _iter_secret_items(value)
+
+
 def load_streamlit_secrets_into_env() -> None:
     # Streamlit Cloud stores credentials in st.secrets.
     # Local .env files are primarily for local runs.
-    if "PINECONE_API_KEY" in st.secrets:
-        os.environ["PINECONE_API_KEY"] = str(st.secrets["PINECONE_API_KEY"])
-    if "OPENAI_API_KEY" in st.secrets:
-        os.environ["OPENAI_API_KEY"] = str(st.secrets["OPENAI_API_KEY"])
+    discovered = {}
+    for key, value in _iter_secret_items(st.secrets):
+        if value is None:
+            continue
+        value_text = str(value).strip()
+        if not value_text:
+            continue
+        discovered[_norm_key(key)] = value_text
+
+    for env_key, aliases in SECRET_KEY_ALIASES.items():
+        for alias in aliases:
+            norm_alias = _norm_key(alias)
+            if norm_alias in discovered:
+                os.environ[env_key] = discovered[norm_alias]
+                break
 
 
 def missing_key_message(exc: Exception) -> str:
@@ -23,6 +62,32 @@ def missing_key_message(exc: Exception) -> str:
         "OPENAI_API_KEY=\"your_openai_key\"\n\n"
         f"Current error: {exc}"
     )
+
+
+def key_presence_diagnostics() -> dict[str, bool]:
+    discovered = set()
+    for key, value in _iter_secret_items(st.secrets):
+        if value is None:
+            continue
+        if str(value).strip():
+            discovered.add(_norm_key(key))
+
+    pinecone_secret_found = any(
+        _norm_key(alias) in discovered
+        for alias in SECRET_KEY_ALIASES["PINECONE_API_KEY"]
+    )
+    openai_secret_found = any(
+        _norm_key(alias) in discovered
+        for alias in SECRET_KEY_ALIASES["OPENAI_API_KEY"]
+    )
+
+    diagnostics = {
+        "env:PINECONE_API_KEY": bool(os.environ.get("PINECONE_API_KEY", "")),
+        "env:OPENAI_API_KEY": bool(os.environ.get("OPENAI_API_KEY", "")),
+        "secrets:any_alias:PINECONE_API_KEY": pinecone_secret_found,
+        "secrets:any_alias:OPENAI_API_KEY": openai_secret_found,
+    }
+    return diagnostics
 
 
 def format_fallback_answer(docs) -> str:
@@ -105,6 +170,9 @@ def main() -> None:
         st.markdown("   (use .env only for local runs)")
         st.markdown("2. Run: python store_index.py")
         st.markdown("3. Start: streamlit run streamlit_app.py")
+        with st.expander("Key diagnostics", expanded=False):
+            for source, present in key_presence_diagnostics().items():
+                st.write(f"- {source}: {present}")
         if st.button("Clear chat history"):
             st.session_state.messages = []
             st.rerun()
