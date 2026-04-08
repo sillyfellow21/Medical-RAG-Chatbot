@@ -31,3 +31,18 @@ def build_and_store_index(settings: Settings) -> None:
         index_name=settings.index_name,
         embedding=embeddings,
     )
+
+
+def is_index_ready(settings: Settings) -> bool:
+    pc = Pinecone(api_key=settings.pinecone_api_key)
+    if not pc.has_index(settings.index_name):
+        return False
+
+    stats = pc.Index(settings.index_name).describe_index_stats()
+    vector_count = stats.get("total_vector_count", 0)
+    return bool(vector_count and vector_count > 0)
+
+
+def ensure_index_ready(settings: Settings) -> None:
+    if not is_index_ready(settings):
+        build_and_store_index(settings)

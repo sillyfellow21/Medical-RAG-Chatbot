@@ -4,10 +4,11 @@ from collections.abc import Mapping
 import streamlit as st
 
 from src.config import Settings, get_settings
+from src.index_builder import ensure_index_ready
 from src.rag_pipeline import build_rag_chain, build_retriever
 
 
-APP_BUILD = "2026-04-08-rko-debug-1"
+APP_BUILD = "2026-04-09-auto-mode-1"
 
 
 SECRET_KEY_ALIASES = {
@@ -144,7 +145,10 @@ def format_fallback_answer(docs) -> str:
         if len(unique_snippets) == 3:
             break
 
-    snippets = [f"{idx}. {snippet}" for idx, snippet in enumerate(unique_snippets, start=1)]
+    snippets = [
+        f"{idx}. {snippet}"
+        for idx, snippet in enumerate(unique_snippets, start=1)
+    ]
 
     if not snippets:
         return (
@@ -161,6 +165,7 @@ def format_fallback_answer(docs) -> str:
 
 @st.cache_resource(show_spinner=False)
 def get_cached_retriever(settings: Settings):
+    ensure_index_ready(settings)
     return build_retriever(settings)
 
 
