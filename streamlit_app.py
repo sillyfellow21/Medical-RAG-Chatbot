@@ -15,6 +15,16 @@ def load_streamlit_secrets_into_env() -> None:
         os.environ["OPENAI_API_KEY"] = str(st.secrets["OPENAI_API_KEY"])
 
 
+def missing_key_message(exc: Exception) -> str:
+    return (
+        "Configuration issue: missing API keys.\n\n"
+        "Add these in Streamlit Cloud -> App settings -> Secrets:\n\n"
+        "PINECONE_API_KEY=\"your_pinecone_key\"\n"
+        "OPENAI_API_KEY=\"your_openai_key\"\n\n"
+        f"Current error: {exc}"
+    )
+
+
 def format_fallback_answer(docs) -> str:
     if not docs:
         return (
@@ -44,7 +54,11 @@ def format_fallback_answer(docs) -> str:
 @st.cache_resource(show_spinner=False)
 def get_runtime_components():
     load_streamlit_secrets_into_env()
-    settings = get_settings(require_openai=False)
+    try:
+        settings = get_settings(require_openai=False)
+    except Exception as exc:
+        return None, None, None, exc
+
     retriever = build_retriever(settings)
 
     rag_chain = None
@@ -55,7 +69,7 @@ def get_runtime_components():
         except Exception as exc:
             rag_chain_error = exc
 
-    return retriever, rag_chain, rag_chain_error
+    return retriever, rag_chain, rag_chain_error, None
 
 
 def generate_answer(question: str, retriever, rag_chain) -> str:
@@ -118,7 +132,15 @@ def main() -> None:
                     retriever,
                     rag_chain,
                     rag_chain_error,
+                    settings_error,
                 ) = get_runtime_components()
+                if settings_error is not None:
+                    answer = missing_key_message(settings_error)
+                    st.markdown(answer)
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": answer}
+                    )
+                    return
                 if rag_chain_error is not None:
                     st.warning(
                         "LLM generation is unavailable in this runtime. "
