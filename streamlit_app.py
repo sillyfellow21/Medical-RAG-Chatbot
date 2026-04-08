@@ -1,7 +1,18 @@
+import os
+
 import streamlit as st
 
 from src.config import get_settings
 from src.rag_pipeline import build_rag_chain, build_retriever
+
+
+def load_streamlit_secrets_into_env() -> None:
+    # Streamlit Cloud stores credentials in st.secrets.
+    # Local .env files are primarily for local runs.
+    if "PINECONE_API_KEY" in st.secrets:
+        os.environ["PINECONE_API_KEY"] = str(st.secrets["PINECONE_API_KEY"])
+    if "OPENAI_API_KEY" in st.secrets:
+        os.environ["OPENAI_API_KEY"] = str(st.secrets["OPENAI_API_KEY"])
 
 
 def format_fallback_answer(docs) -> str:
@@ -32,6 +43,7 @@ def format_fallback_answer(docs) -> str:
 
 @st.cache_resource(show_spinner=False)
 def get_runtime_components():
+    load_streamlit_secrets_into_env()
     settings = get_settings(require_openai=False)
     retriever = build_retriever(settings)
 
@@ -69,7 +81,10 @@ def main() -> None:
 
     with st.sidebar:
         st.subheader("Run Checklist")
-        st.markdown("1. Set PINECONE_API_KEY and OPENAI_API_KEY in .env")
+        st.markdown(
+            "1. Set PINECONE_API_KEY and OPENAI_API_KEY in Streamlit Secrets"
+        )
+        st.markdown("   (use .env only for local runs)")
         st.markdown("2. Run: python store_index.py")
         st.markdown("3. Start: streamlit run streamlit_app.py")
 
