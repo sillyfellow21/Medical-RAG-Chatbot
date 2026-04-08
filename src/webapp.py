@@ -39,9 +39,14 @@ def create_app() -> Flask:
         template_folder=str(project_root / "templates"),
         static_folder=str(project_root / "static"),
     )
-    settings = get_settings(require_openai=True)
+    settings = get_settings(require_openai=False)
     retriever = build_retriever(settings)
-    rag_chain = build_rag_chain(settings, retriever=retriever)
+    rag_chain = None
+    try:
+        if settings.openai_api_key:
+            rag_chain = build_rag_chain(settings, retriever=retriever)
+    except Exception as exc:
+        print("RAG chain unavailable:", exc)
 
     @app.route("/")
     def index():
@@ -51,22 +56,24 @@ def create_app() -> Flask:
     def chat():
         msg = request.form["msg"]
         print(msg)
-        try:
-            response = rag_chain.invoke({"input": msg})
-            print("Response : ", response["answer"])
-            return str(response["answer"])
-        except Exception as exc:
-            print("Chat error:", exc)
+        if rag_chain is not None:
             try:
-                docs = retriever.invoke(msg)
-                fallback = _format_fallback_answer(docs)
-                print("Fallback response generated")
-                return fallback
-            except Exception as fallback_exc:
-                print("Fallback error:", fallback_exc)
-                return (
-                    "I could not generate a response right now. "
-                    "Please verify your OpenAI API quota and try again."
-                )
+                response = rag_chain.invoke({"input": msg})
+                print("Response : ", response["answer"])
+                return str(response["answer"])
+            except Exception as exc:
+                print("Chat error:", exc)
+
+        try:
+            docs = retriever.invoke(msg)
+            fallback = _format_fallback_answer(docs)
+            print("Fallback response generated")
+            return fallback
+        except Exception as fallback_exc:
+            print("Fallback error:", fallback_exc)
+            return (
+                "I could not generate a response right now. "
+                "Please verify your OpenAI API quota and try again."
+            )
 
     return app

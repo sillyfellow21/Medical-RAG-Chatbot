@@ -1,7 +1,3 @@
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from langchain_pinecone import PineconeVectorStore
 
 from src.config import Settings
@@ -27,6 +23,19 @@ def build_retriever(settings: Settings):
 def build_rag_chain(settings: Settings, retriever=None):
     if retriever is None:
         retriever = build_retriever(settings)
+
+    try:
+        from langchain.chains import create_retrieval_chain
+        from langchain.chains.combine_documents import (
+            create_stuff_documents_chain,
+        )
+        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_openai import ChatOpenAI
+    except Exception as exc:
+        raise RuntimeError(
+            "LLM chain dependencies are incompatible with the current "
+            "Python runtime. Use Python 3.11 or rely on retrieval fallback."
+        ) from exc
 
     chat_model = ChatOpenAI(model=settings.llm_model)
     prompt = ChatPromptTemplate.from_messages(

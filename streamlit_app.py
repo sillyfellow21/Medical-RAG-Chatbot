@@ -36,10 +36,14 @@ def get_runtime_components():
     retriever = build_retriever(settings)
 
     rag_chain = None
+    rag_chain_error = None
     if settings.openai_api_key:
-        rag_chain = build_rag_chain(settings, retriever=retriever)
+        try:
+            rag_chain = build_rag_chain(settings, retriever=retriever)
+        except Exception as exc:
+            rag_chain_error = exc
 
-    return retriever, rag_chain
+    return retriever, rag_chain, rag_chain_error
 
 
 def generate_answer(question: str, retriever, rag_chain) -> str:
@@ -95,7 +99,16 @@ def main() -> None:
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
-                retriever, rag_chain = get_runtime_components()
+                (
+                    retriever,
+                    rag_chain,
+                    rag_chain_error,
+                ) = get_runtime_components()
+                if rag_chain_error is not None:
+                    st.warning(
+                        "LLM generation is unavailable in this runtime. "
+                        "Using retrieval-only fallback."
+                    )
                 answer = generate_answer(question, retriever, rag_chain)
             except Exception as exc:
                 answer = (
