@@ -2,7 +2,7 @@ import os
 
 import streamlit as st
 
-from src.config import get_settings
+from src.config import Settings, get_settings
 from src.rag_pipeline import build_rag_chain, build_retriever
 
 
@@ -52,6 +52,10 @@ def format_fallback_answer(docs) -> str:
 
 
 @st.cache_resource(show_spinner=False)
+def get_cached_retriever(settings: Settings):
+    return build_retriever(settings)
+
+
 def get_runtime_components():
     load_streamlit_secrets_into_env()
     try:
@@ -59,7 +63,7 @@ def get_runtime_components():
     except Exception as exc:
         return None, None, None, exc
 
-    retriever = build_retriever(settings)
+    retriever = get_cached_retriever(settings)
 
     rag_chain = None
     rag_chain_error = None
@@ -101,6 +105,9 @@ def main() -> None:
         st.markdown("   (use .env only for local runs)")
         st.markdown("2. Run: python store_index.py")
         st.markdown("3. Start: streamlit run streamlit_app.py")
+        if st.button("Clear chat history"):
+            st.session_state.messages = []
+            st.rerun()
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
