@@ -37,6 +37,13 @@ def _iter_secret_items(data):
             yield from _iter_secret_items(value)
 
 
+def _safe_streamlit_secrets():
+    try:
+        return st.secrets
+    except Exception:
+        return {}
+
+
 def load_session_keys_into_env() -> None:
     pinecone_key = st.session_state.get("runtime_pinecone_key", "").strip()
     openai_key = st.session_state.get("runtime_openai_key", "").strip()
@@ -50,8 +57,9 @@ def load_session_keys_into_env() -> None:
 def load_streamlit_secrets_into_env() -> None:
     # Streamlit Cloud stores credentials in st.secrets.
     # Local .env files are primarily for local runs.
+    secrets = _safe_streamlit_secrets()
     discovered = {}
-    for key, value in _iter_secret_items(st.secrets):
+    for key, value in _iter_secret_items(secrets):
         if value is None:
             continue
         value_text = str(value).strip()
@@ -82,8 +90,9 @@ def missing_key_message(exc: Exception) -> str:
 
 
 def key_presence_diagnostics() -> dict[str, bool]:
+    secrets = _safe_streamlit_secrets()
     discovered = set()
-    for key, value in _iter_secret_items(st.secrets):
+    for key, value in _iter_secret_items(secrets):
         if value is None:
             continue
         if str(value).strip():
@@ -99,6 +108,7 @@ def key_presence_diagnostics() -> dict[str, bool]:
     )
 
     diagnostics = {
+        "secrets:available": bool(secrets),
         "env:PINECONE_API_KEY": bool(os.environ.get("PINECONE_API_KEY", "")),
         "env:OPENAI_API_KEY": bool(os.environ.get("OPENAI_API_KEY", "")),
         "secrets:any_alias:PINECONE_API_KEY": pinecone_secret_found,
