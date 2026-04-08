@@ -9,6 +9,7 @@ slightly different internal code structure for maintainability.
 ```text
 .
 |- app.py                    # Flask runtime entrypoint
+|- streamlit_app.py          # Streamlit runtime entrypoint
 |- store_index.py            # Vector index build entrypoint
 |- src/
 |  |- config.py              # .env loading and runtime settings
@@ -63,6 +64,15 @@ python store_index.py
 # Finally run the following command
 python app.py
 ```
+
+### Run with Streamlit
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The Streamlit app uses the same backend modules and includes a retrieval-only
+fallback if OpenAI generation is unavailable.
 
 Now,
 ```bash
