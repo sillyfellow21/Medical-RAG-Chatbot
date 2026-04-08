@@ -34,6 +34,16 @@ def _iter_secret_items(data):
             yield from _iter_secret_items(value)
 
 
+def load_session_keys_into_env() -> None:
+    pinecone_key = st.session_state.get("runtime_pinecone_key", "").strip()
+    openai_key = st.session_state.get("runtime_openai_key", "").strip()
+
+    if pinecone_key:
+        os.environ["PINECONE_API_KEY"] = pinecone_key
+    if openai_key:
+        os.environ["OPENAI_API_KEY"] = openai_key
+
+
 def load_streamlit_secrets_into_env() -> None:
     # Streamlit Cloud stores credentials in st.secrets.
     # Local .env files are primarily for local runs.
@@ -53,6 +63,8 @@ def load_streamlit_secrets_into_env() -> None:
                 os.environ[env_key] = discovered[norm_alias]
                 break
 
+    load_session_keys_into_env()
+
 
 def missing_key_message(exc: Exception) -> str:
     return (
@@ -60,6 +72,8 @@ def missing_key_message(exc: Exception) -> str:
         "Add these in Streamlit Cloud -> App settings -> Secrets:\n\n"
         "PINECONE_API_KEY=\"your_pinecone_key\"\n"
         "OPENAI_API_KEY=\"your_openai_key\"\n\n"
+        "Or use the sidebar Runtime Key Override for a "
+        "temporary session fix.\n\n"
         f"Current error: {exc}"
     )
 
@@ -86,6 +100,12 @@ def key_presence_diagnostics() -> dict[str, bool]:
         "env:OPENAI_API_KEY": bool(os.environ.get("OPENAI_API_KEY", "")),
         "secrets:any_alias:PINECONE_API_KEY": pinecone_secret_found,
         "secrets:any_alias:OPENAI_API_KEY": openai_secret_found,
+        "session:runtime_pinecone_key": bool(
+            st.session_state.get("runtime_pinecone_key", "").strip()
+        ),
+        "session:runtime_openai_key": bool(
+            st.session_state.get("runtime_openai_key", "").strip()
+        ),
     }
     return diagnostics
 
@@ -170,6 +190,29 @@ def main() -> None:
         st.markdown("   (use .env only for local runs)")
         st.markdown("2. Run: python store_index.py")
         st.markdown("3. Start: streamlit run streamlit_app.py")
+
+        st.subheader("Runtime Key Override")
+        st.caption(
+            "If secrets are not detected, provide keys here for this "
+            "session only."
+        )
+        st.text_input(
+            "Pinecone API Key",
+            key="runtime_pinecone_key",
+            type="password",
+            placeholder="pcsk_...",
+        )
+        st.text_input(
+            "OpenAI API Key",
+            key="runtime_openai_key",
+            type="password",
+            placeholder="sk-...",
+        )
+        if st.button("Apply runtime keys"):
+            load_session_keys_into_env()
+            st.success("Runtime keys applied for this session.")
+            st.rerun()
+
         with st.expander("Key diagnostics", expanded=False):
             for source, present in key_presence_diagnostics().items():
                 st.write(f"- {source}: {present}")
