@@ -120,11 +120,21 @@ def format_fallback_answer(docs) -> str:
             "was retrieved from the knowledge base."
         )
 
-    snippets = []
-    for idx, doc in enumerate(docs[:3], start=1):
+    unique_snippets = []
+    seen = set()
+    for doc in docs:
         snippet = " ".join(doc.page_content.split())[:300]
-        if snippet:
-            snippets.append(f"{idx}. {snippet}")
+        if not snippet:
+            continue
+        normalized = snippet.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_snippets.append(snippet)
+        if len(unique_snippets) == 3:
+            break
+
+    snippets = [f"{idx}. {snippet}" for idx, snippet in enumerate(unique_snippets, start=1)]
 
     if not snippets:
         return (
