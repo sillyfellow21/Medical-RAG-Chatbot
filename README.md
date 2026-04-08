@@ -74,6 +74,20 @@ streamlit run streamlit_app.py
 The Streamlit app uses the same backend modules and includes a retrieval-only
 fallback if OpenAI generation is unavailable.
 
+### Streamlit Cloud Setup (Important)
+
+1. Set Main file path to `streamlit_app.py` (not `app.py`).
+2. This repo includes `runtime.txt` with `python-3.11` to avoid Cloud runtime
+	incompatibilities with LangChain/Pydantic.
+3. Add secrets in Streamlit Cloud settings:
+
+```toml
+PINECONE_API_KEY="your_key"
+OPENAI_API_KEY="your_key"
+```
+
+4. Reboot the app after changing Main file path or secrets.
+
 Now,
 ```bash
 open up localhost:
