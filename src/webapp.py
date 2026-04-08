@@ -3,7 +3,33 @@ from pathlib import Path
 from flask import Flask, render_template, request
 
 from src.config import get_settings
-from src.rag_pipeline import build_rag_chain
+from src.rag_pipeline import build_rag_chain, build_retriever
+
+
+def _format_fallback_answer(docs) -> str:
+    if not docs:
+        return (
+            "OpenAI quota is currently unavailable and I could not find "
+            "relevant context in the medical knowledge base."
+        )
+
+    snippets = []
+    for idx, doc in enumerate(docs[:3], start=1):
+        snippet = " ".join(doc.page_content.split())[:300]
+        if snippet:
+            snippets.append(f"{idx}. {snippet}")
+
+    if not snippets:
+        return (
+            "OpenAI quota is currently unavailable and I could not extract "
+            "a useful context snippet from the retrieved documents."
+        )
+
+    return (
+        "OpenAI quota is currently unavailable. "
+        "Here is relevant context from the medical knowledge base:\n\n"
+        + "\n".join(snippets)
+    )
 
 
 def create_app() -> Flask:
@@ -14,7 +40,8 @@ def create_app() -> Flask:
         static_folder=str(project_root / "static"),
     )
     settings = get_settings(require_openai=True)
-    rag_chain = build_rag_chain(settings)
+    retriever = build_retriever(settings)
+    rag_chain = build_rag_chain(settings, retriever=retriever)
 
     @app.route("/")
     def index():
@@ -30,9 +57,16 @@ def create_app() -> Flask:
             return str(response["answer"])
         except Exception as exc:
             print("Chat error:", exc)
-            return (
-                "I could not generate a response right now. "
-                "Please verify your OpenAI API quota and try again."
-            )
+            try:
+                docs = retriever.invoke(msg)
+                fallback = _format_fallback_answer(docs)
+                print("Fallback response generated")
+                return fallback
+            except Exception as fallback_exc:
+                print("Fallback error:", fallback_exc)
+                return (
+                    "I could not generate a response right now. "
+                    "Please verify your OpenAI API quota and try again."
+                )
 
     return app
