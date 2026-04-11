@@ -1,197 +1,275 @@
-# Medical RAG Chatbot (Groq + ChromaDB)
+# Medical RAG Chatbot
 
-This implementation keeps the same end-to-end behavior as the original project
-while using Groq for LLM generation and ChromaDB for vector storage.
+<p align="center">
+  Professional medical document Q&A assistant powered by Groq and ChromaDB
+</p>
+
+<p align="center">
+  <a href="https://medical-rag-chatbot-9n3fqenxcmlwuixpeszhs8.streamlit.app/">Live Streamlit App</a>
+</p>
+
+## Table of Contents
+
+- [Overview](#overview)
+- [For Non-Technical Readers](#for-non-technical-readers)
+- [How It Works](#how-it-works)
+- [Architecture](#architecture)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Local Setup](#local-setup)
+- [Deploy to Streamlit Cloud](#deploy-to-streamlit-cloud)
+- [Troubleshooting](#troubleshooting)
+- [Security and Privacy](#security-and-privacy)
+- [Optional AWS CI/CD Deployment](#optional-aws-cicd-deployment)
+- [Acknowledgments](#acknowledgments)
+
+## Overview
+
+Medical RAG Chatbot is a retrieval-augmented assistant that answers questions
+from your medical PDF knowledge base.
+
+It uses:
+- Groq for fast language model responses.
+- ChromaDB as a local vector database for semantic search.
+- Streamlit for an easy web interface.
+- Flask support for optional API/web runtime.
+
+## For Non-Technical Readers
+
+Think of this app as a smart search assistant for a medical textbook:
+
+1. It reads and organizes the medical PDF into many searchable pieces.
+2. When you ask a question, it finds the most relevant pieces first.
+3. It uses those pieces to generate a focused answer.
+4. If the AI service is unavailable, it still shows relevant context from the
+   document so you are not blocked.
+
+Important note:
+- This tool is for information support only.
+- It is not a replacement for professional medical advice or diagnosis.
+
+## How It Works
+
+1. Ingestion: PDF documents are loaded and split into chunks.
+2. Embedding: Chunks are converted into vector representations.
+3. Storage: Vectors are stored in a ChromaDB collection.
+4. Retrieval: Top relevant chunks are selected for each user question.
+5. Generation: Groq produces a concise answer grounded in retrieved context.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Medical PDF] --> B[Chunk and Embed]
+    B --> C[(ChromaDB)]
+    Q[User Question] --> R[Retriever]
+    R --> C
+    C --> K[Top-k Context]
+    K --> G[Groq Generation]
+    G --> O[Answer]
+    K --> F[Fallback Context Response]
+```
+
+## Key Features
+
+- Retrieval-first design for grounded answers.
+- Groq fail-fast behavior to reduce long wait times.
+- Automatic fallback response when generation is unavailable.
+- Streamlit runtime key diagnostics for easier setup.
+- Batched Chroma ingestion to avoid large-batch failures.
+- Single deployment branch (`main`) to reduce confusion.
+
+## Tech Stack
+
+- Python
+- Streamlit
+- Flask
+- LangChain
+- Groq
+- ChromaDB
+- Sentence Transformers
 
 ## Project Structure
 
 ```text
 .
-|- app.py                    # Flask runtime entrypoint
-|- streamlit_app.py          # Streamlit runtime entrypoint
-|- store_index.py            # Vector index build entrypoint
+|- app.py                    # Flask entrypoint (Streamlit-safe fallback)
+|- streamlit_app.py          # Streamlit entrypoint (recommended)
+|- store_index.py            # Build/update Chroma index
 |- src/
-|  |- config.py              # .env loading and runtime settings
-|  |- helper.py              # PDF loading, filtering, splitting, embeddings
-|  |- index_builder.py       # ChromaDB collection creation + document upsert
-|  |- prompt.py              # System prompt for the assistant
-|  |- rag_pipeline.py        # Retriever + LLM RAG chain assembly
-|  |- webapp.py              # Flask app factory and routes
-|- templates/chat.html       # Chat UI
-|- static/style.css          # Chat styles
+|  |- config.py              # Environment and runtime settings
+|  |- helper.py              # Load/split/embed documents
+|  |- index_builder.py       # Chroma collection build and batching
+|  |- prompt.py              # System prompt template
+|  |- rag_pipeline.py        # Retriever and Groq answer flow
+|  |- webapp.py              # Flask app routes
+|- data/                     # PDF source files
+|- static/                   # UI assets
+|- templates/                # Flask templates
+|- requirements.txt          # Python dependencies
+|- runtime.txt               # Python runtime for Streamlit Cloud
 ```
 
-# How to run?
-### STEPS:
+## Local Setup
 
-Clone the repository
+### Prerequisites
+
+- Python 3.11
+- Git
+
+### 1) Clone
 
 ```bash
 git clone https://github.com/sillyfellow21/Medical-RAG-Chatbot.git
+cd Medical-RAG-Chatbot/my-custom-chatbot
 ```
-### STEP 01- Create a conda environment after opening the repository
+
+### 2) Create and activate environment
+
+Windows (PowerShell):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+macOS/Linux:
 
 ```bash
-conda create -n medibot python=3.10 -y
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-```bash
-conda activate medibot
-```
+### 3) Install dependencies
 
-
-### STEP 02- install the requirements
 ```bash
 pip install -r requirements.txt
 ```
 
+### 4) Configure environment
 
-### Create a `.env` file in the root directory and add your Groq settings:
+Create `.env` in `my-custom-chatbot/`:
 
 ```ini
-GROQ_API_KEY = "your_groq_api_key"
-CHROMA_PERSIST_DIR = "chroma_db"
-CHROMA_COLLECTION = "medical-chatbot"
+GROQ_API_KEY="your_groq_api_key"
+CHROMA_PERSIST_DIR="chroma_db"
+CHROMA_COLLECTION="medical-chatbot"
 ```
 
+### 5) Build vector index
 
 ```bash
-# run the following command to store embeddings to ChromaDB
 python store_index.py
 ```
 
-```bash
-# Finally run the following command
-python app.py
-```
+### 6) Run app
 
-### Run with Streamlit
+Streamlit (recommended):
 
 ```bash
 streamlit run streamlit_app.py
 ```
 
-The Streamlit app uses the same backend modules and includes a retrieval-only
-fallback if Groq generation is unavailable.
+Flask (optional):
 
-### Streamlit Cloud Setup (Important)
-
-1. Set Main file path to `streamlit_app.py` (not `app.py`).
-2. This repo includes `runtime.txt` with `python-3.11` to avoid Cloud runtime
-	incompatibilities with LangChain/Pydantic.
-3. Add secrets in Streamlit Cloud settings:
-
-```toml
-GROQ_API_KEY="your_key"
-```
-
-4. Reboot the app after changing Main file path or secrets.
-
-### If you still see "Missing GROQ_API_KEY"
-
-1. Open the app sidebar and expand "Key diagnostics".
-2. Confirm `secrets:any_alias:GROQ_API_KEY` is `True`.
-3. If `False`, set secrets exactly as:
-
-```toml
-GROQ_API_KEY="your_groq_key"
-```
-
-4. Save secrets and reboot the app again.
-5. Click "Clear chat history" in the sidebar to remove stale messages.
-
-Now,
 ```bash
-open up localhost:
+python app.py
 ```
 
+## Deploy to Streamlit Cloud
 
-### Techstack Used:
+### Required settings
 
-- Python
-- LangChain
-- Flask
-- Groq
-- ChromaDB
+1. Repository: `sillyfellow21/Medical-RAG-Chatbot`
+2. Branch: `main`
+3. Main file path: `streamlit_app.py`
+4. Python runtime: from `runtime.txt` (`python-3.11`)
 
+### Secrets (Streamlit Cloud)
 
+Add in App Settings -> Secrets:
 
-# AWS-CICD-Deployment-with-Github-Actions
+```toml
+GROQ_API_KEY="your_groq_api_key"
+```
 
-## 1. Login to AWS console.
+### After changes
 
-## 2. Create IAM user for deployment
+Always run:
 
-	#with specific access
+1. Clear cache
+2. Reboot app
 
-	1. EC2 access : It is virtual machine
+## Troubleshooting
 
-	2. ECR: Elastic Container registry to save your docker image in aws
+### No calls visible in Groq console
 
+Possible reasons:
+- `GROQ_API_KEY` is not set in Streamlit Cloud Secrets.
+- Wrong Streamlit entrypoint is selected.
+- App is running fallback-only mode.
 
-	#Description: About the deployment
+Check in app sidebar:
+- Open `Key diagnostics` and confirm Groq key detection.
+- Verify warning messages about fallback mode.
 
-	1. Build docker image of the source code
+### App says "Missing GROQ_API_KEY"
 
-	2. Push your docker image to ECR
+1. Add secret exactly as `GROQ_API_KEY`.
+2. Save secrets.
+3. Clear cache and reboot.
 
-	3. Launch Your EC2 
+### Slow responses / "Thinking" too long
 
-	4. Pull Your image from ECR in EC2
+- First run may be slower due to warm-up and indexing.
+- If Groq times out, app falls back to retrieval snippets.
 
-	5. Lauch your docker image in EC2
+### Batch size ValueError in Chroma
 
-	#Policy:
+- Fixed by batched ingestion in `src/index_builder.py`.
+- Pull latest `main`, then clear cache and rebuild index.
 
-	1. AmazonEC2ContainerRegistryFullAccess
+### Entry file confusion
 
-	2. AmazonEC2FullAccess
+- Streamlit Cloud main file must be `streamlit_app.py`.
+- `app.py` is primarily Flask runtime.
 
-	
-## 3. Create ECR repo to store/save docker image
-    - Save the URI: 315865595366.dkr.ecr.us-east-1.amazonaws.com/medicalbot
+## Security and Privacy
 
-	
-## 4. Create EC2 machine (Ubuntu) 
+- `.env` is git-ignored and should never be committed.
+- Keep API keys only in local `.env` or Streamlit Secrets.
+- Do not share keys in screenshots, logs, or chat.
+- If a key is exposed, rotate it immediately.
 
-## 5. Open EC2 and Install docker in EC2 Machine:
-	
-	
-	#optinal
+## Optional AWS CI/CD Deployment
 
-	sudo apt-get update -y
+This repo includes a GitHub Actions workflow for AWS container deployment.
 
-	sudo apt-get upgrade
-	
-	#required
+High-level flow:
 
-	curl -fsSL https://get.docker.com -o get-docker.sh
+1. Build Docker image from source.
+2. Push image to Amazon ECR.
+3. Pull image on EC2 self-hosted runner.
+4. Run container with required environment variables.
 
-	sudo sh get-docker.sh
+Typical GitHub Secrets:
 
-	sudo usermod -aG docker ubuntu
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_DEFAULT_REGION`
+- `ECR_REPO`
+- `GROQ_API_KEY`
 
-	newgrp docker
-	
-# 6. Configure EC2 as self-hosted runner:
-    setting>actions>runner>new self hosted runner> choose os> then run command one by one
+## Acknowledgments
 
+This project builds on the foundational architecture from:
 
-# 7. Setup github secrets:
+- Original project:
+  https://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
 
-   - AWS_ACCESS_KEY_ID
-   - AWS_SECRET_ACCESS_KEY
-   - AWS_DEFAULT_REGION
-   - ECR_REPO
-	- GROQ_API_KEY
-## Acknowledgments and Credits
+Major updates in this version:
 
-This project was built upon the foundational architecture and codebase provided by [entbappy](https://github.com/entbappy). 
-
-* **Original Project:** [Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS](https://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS)
-* Modifications made in this version include:
-	* Swapped vector and LLM providers to ChromaDB + Groq.
-  * Refactored frontend and backend logic.
-	* Added retrieval-first fallback behavior when generation is unavailable.
-
-A huge thank you to the original author for providing a great starting point!
+- Migrated LLM and vector stack to Groq + ChromaDB.
+- Added Streamlit runtime diagnostics and fallback handling.
+- Improved deployment stability and branch consistency.
