@@ -7,6 +7,69 @@ from src.prompt import system_prompt
 
 GROQ_TIMEOUT_SECONDS = 15
 GROQ_MAX_RETRIES = 1
+MAX_CONTEXT_CHARS = 4000
+
+
+def _serialize_response_content(content) -> str:
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        chunks = []
+        for item in content:
+            if isinstance(item, str):
+                chunks.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if text:
+                    chunks.append(str(text))
+            else:
+                chunks.append(str(item))
+        return "".join(chunks)
+
+    return str(content)
+
+
+def _build_context(docs, max_chars: int = MAX_CONTEXT_CHARS) -> str:
+    parts = []
+    used = 0
+    for doc in docs:
+        snippet = " ".join(doc.page_content.split())
+        if not snippet:
+            continue
+
+        remaining = max_chars - used
+        if remaining <= 0:
+            break
+
+        if len(snippet) > remaining:
+            snippet = snippet[:remaining]
+
+        parts.append(snippet)
+        used += len(snippet)
+
+    return "\n\n".join(parts)
+
+
+class SimpleRagChain:
+    def __init__(self, retriever, chat_model):
+        self.retriever = retriever
+        self.chat_model = chat_model
+
+    def invoke(self, inputs):
+        question = str(inputs.get("input", "")).strip()
+        docs = self.retriever.invoke(question)
+        context = _build_context(docs)
+
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        messages = [
+            SystemMessage(content=system_prompt.format(context=context)),
+            HumanMessage(content=question),
+        ]
+
+        response = self.chat_model.invoke(messages)
+        return {"answer": _serialize_response_content(response.content)}
 
 
 def build_retriever(settings: Settings):
@@ -30,11 +93,6 @@ def build_rag_chain(settings: Settings, retriever=None):
         retriever = build_retriever(settings)
 
     try:
-        from langchain.chains import create_retrieval_chain
-        from langchain.chains.combine_documents import (
-            create_stuff_documents_chain,
-        )
-        from langchain_core.prompts import ChatPromptTemplate
         from langchain_groq import ChatGroq
     except Exception as exc:
         raise RuntimeError(
@@ -48,12 +106,4 @@ def build_rag_chain(settings: Settings, retriever=None):
         timeout=GROQ_TIMEOUT_SECONDS,
         max_retries=GROQ_MAX_RETRIES,
     )
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_prompt),
-            ("human", "{input}"),
-        ]
-    )
-
-    question_answer_chain = create_stuff_documents_chain(chat_model, prompt)
-    return create_retrieval_chain(retriever, question_answer_chain)
+    return SimpleRagChain(retriever=retriever, chat_model=chat_model)
