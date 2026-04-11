@@ -12,10 +12,21 @@ from src.helper import (
 )
 
 
+CHROMA_WRITE_BATCH_SIZE = 1000
+
+
+def _batched(items, size):
+    for start in range(0, len(items), size):
+        yield items[start:start + size]
+
+
 def build_and_store_index(settings: Settings) -> None:
     extracted_data = load_pdf_file(data=settings.data_dir)
     filtered_data = filter_to_minimal_docs(extracted_data)
     text_chunks = text_split(filtered_data)
+
+    if not text_chunks:
+        return
 
     embeddings = download_hugging_face_embeddings()
     persist_dir = Path(settings.chroma_persist_dir)
@@ -32,7 +43,8 @@ def build_and_store_index(settings: Settings) -> None:
         collection_name=settings.chroma_collection,
         embedding_function=embeddings,
     )
-    vector_store.add_documents(text_chunks)
+    for batch in _batched(text_chunks, CHROMA_WRITE_BATCH_SIZE):
+        vector_store.add_documents(batch)
 
 
 def is_index_ready(settings: Settings) -> bool:
