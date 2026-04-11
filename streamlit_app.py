@@ -70,13 +70,14 @@ def load_streamlit_secrets_into_env() -> None:
 
 
 def missing_key_message(exc: Exception) -> str:
+    error_type = exc.__class__.__name__
     return (
         "Configuration issue: missing API keys.\n\n"
         "Add these in Streamlit Cloud -> App settings -> Secrets:\n\n"
         "GROQ_API_KEY=\"your_groq_key\"\n\n"
         "Or use the sidebar Runtime Key Override for a "
         "temporary session fix.\n\n"
-        f"Current error: {exc}"
+        f"Error type: {error_type}"
     )
 
 
@@ -298,9 +299,10 @@ def main() -> None:
                 if fallback_reason:
                     st.info(fallback_reason)
             except Exception as exc:
+                error_type = exc.__class__.__name__
                 answer = (
                     "The app could not complete the request. "
-                    f"Details: {exc}"
+                    f"Error type: {error_type}"
                 )
             st.markdown(answer)
 

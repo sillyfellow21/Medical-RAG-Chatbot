@@ -49,7 +49,7 @@ pip install -r requirements.txt
 ### Create a `.env` file in the root directory and add your Groq settings:
 
 ```ini
-GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GROQ_API_KEY = "your_groq_api_key"
 CHROMA_PERSIST_DIR = "chroma_db"
 CHROMA_COLLECTION = "medical-chatbot"
 ```
