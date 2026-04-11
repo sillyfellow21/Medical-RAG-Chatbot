@@ -7,26 +7,20 @@ from dotenv import load_dotenv
 
 @dataclass(frozen=True)
 class Settings:
-    pinecone_api_key: str
-    openai_api_key: str
-    index_name: str = "medical-chatbot"
+    groq_api_key: str = ""
+    chroma_collection: str = "medical-chatbot"
+    chroma_persist_dir: str = "chroma_db"
     retriever_k: int = 3
-    llm_model: str = "gpt-4o"
+    llm_model: str = "llama-3.1-8b-instant"
     data_dir: str = "data/"
 
 
 KEY_ALIASES = {
-    "PINECONE_API_KEY": [
-        "PINECONE_API_KEY",
-        "pinecone_api_key",
-        "PINECONE_KEY",
-        "pinecone_key",
-    ],
-    "OPENAI_API_KEY": [
-        "OPENAI_API_KEY",
-        "openai_api_key",
-        "OPENAI_KEY",
-        "openai_key",
+    "GROQ_API_KEY": [
+        "GROQ_API_KEY",
+        "groq_api_key",
+        "GROQ_KEY",
+        "groq_key",
     ],
 }
 
@@ -83,34 +77,51 @@ def _read_env_key(keys: list[str]) -> str:
     return ""
 
 
-def get_settings(require_openai: bool = True) -> Settings:
+def _read_optional_setting(name: str, default: str) -> str:
+    value = os.environ.get(name, "").strip()
+    return value or default
+
+
+def get_settings(require_groq: bool = True) -> Settings:
     load_dotenv()
 
-    pinecone_keys = KEY_ALIASES["PINECONE_API_KEY"]
-    openai_keys = KEY_ALIASES["OPENAI_API_KEY"]
+    groq_keys = KEY_ALIASES["GROQ_API_KEY"]
 
-    pinecone_api_key = _read_env_key(pinecone_keys)
-    openai_api_key = _read_env_key(openai_keys)
+    groq_api_key = _read_env_key(groq_keys)
 
-    if not pinecone_api_key:
-        pinecone_api_key = _read_streamlit_secret(pinecone_keys)
-    if not openai_api_key:
-        openai_api_key = _read_streamlit_secret(openai_keys)
+    if not groq_api_key:
+        groq_api_key = _read_streamlit_secret(groq_keys)
 
-    if not pinecone_api_key:
+    if require_groq and not groq_api_key:
         raise RuntimeError(
-            "Missing PINECONE_API_KEY in environment/.env/Streamlit secrets."
-        )
-    if require_openai and not openai_api_key:
-        raise RuntimeError(
-            "Missing OPENAI_API_KEY in environment/.env/Streamlit secrets."
+            "Missing GROQ_API_KEY in environment/.env/Streamlit secrets."
         )
 
-    os.environ["PINECONE_API_KEY"] = pinecone_api_key
-    if openai_api_key:
-        os.environ["OPENAI_API_KEY"] = openai_api_key
+    if groq_api_key:
+        os.environ["GROQ_API_KEY"] = groq_api_key
+
+    chroma_collection = _read_optional_setting(
+        "CHROMA_COLLECTION", "medical-chatbot"
+    )
+    chroma_persist_dir = _read_optional_setting(
+        "CHROMA_PERSIST_DIR", "chroma_db"
+    )
+    llm_model = _read_optional_setting("GROQ_MODEL", "llama-3.1-8b-instant")
+    data_dir = _read_optional_setting("DATA_DIR", "data/")
+
+    try:
+        retriever_k = int(_read_optional_setting("RETRIEVER_K", "3"))
+    except ValueError:
+        retriever_k = 3
+
+    if retriever_k <= 0:
+        retriever_k = 3
 
     return Settings(
-        pinecone_api_key=pinecone_api_key,
-        openai_api_key=openai_api_key,
+        groq_api_key=groq_api_key,
+        chroma_collection=chroma_collection,
+        chroma_persist_dir=chroma_persist_dir,
+        retriever_k=retriever_k,
+        llm_model=llm_model,
+        data_dir=data_dir,
     )

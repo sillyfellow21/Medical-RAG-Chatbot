@@ -9,7 +9,7 @@ from src.rag_pipeline import build_rag_chain, build_retriever
 def _format_fallback_answer(docs) -> str:
     if not docs:
         return (
-            "OpenAI quota is currently unavailable and I could not find "
+            "Groq generation is currently unavailable and I could not find "
             "relevant context in the medical knowledge base."
         )
 
@@ -27,16 +27,19 @@ def _format_fallback_answer(docs) -> str:
         if len(unique_snippets) == 3:
             break
 
-    snippets = [f"{idx}. {snippet}" for idx, snippet in enumerate(unique_snippets, start=1)]
+    snippets = [
+        f"{idx}. {snippet}"
+        for idx, snippet in enumerate(unique_snippets, start=1)
+    ]
 
     if not snippets:
         return (
-            "OpenAI quota is currently unavailable and I could not extract "
+            "Groq generation is currently unavailable and I could not extract "
             "a useful context snippet from the retrieved documents."
         )
 
     return (
-        "OpenAI quota is currently unavailable. "
+        "Groq generation is currently unavailable. "
         "Here is relevant context from the medical knowledge base:\n\n"
         + "\n".join(snippets)
     )
@@ -49,11 +52,11 @@ def create_app() -> Flask:
         template_folder=str(project_root / "templates"),
         static_folder=str(project_root / "static"),
     )
-    settings = get_settings(require_openai=False)
+    settings = get_settings(require_groq=False)
     retriever = build_retriever(settings)
     rag_chain = None
     try:
-        if settings.openai_api_key:
+        if settings.groq_api_key:
             rag_chain = build_rag_chain(settings, retriever=retriever)
     except Exception as exc:
         print("RAG chain unavailable:", exc)
@@ -83,7 +86,7 @@ def create_app() -> Flask:
             print("Fallback error:", fallback_exc)
             return (
                 "I could not generate a response right now. "
-                "Please verify your OpenAI API quota and try again."
+                "Please verify your GROQ_API_KEY and try again."
             )
 
     return app

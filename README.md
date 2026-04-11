@@ -1,8 +1,7 @@
-# Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
+# Medical RAG Chatbot (Groq + ChromaDB)
 
 This implementation keeps the same end-to-end behavior as the original project
-(Flask + LangChain + OpenAI + Pinecone medical RAG chatbot) while using a
-slightly different internal code structure for maintainability.
+while using Groq for LLM generation and ChromaDB for vector storage.
 
 ## Project Structure
 
@@ -14,7 +13,7 @@ slightly different internal code structure for maintainability.
 |- src/
 |  |- config.py              # .env loading and runtime settings
 |  |- helper.py              # PDF loading, filtering, splitting, embeddings
-|  |- index_builder.py       # Pinecone index creation + document upsert
+|  |- index_builder.py       # ChromaDB collection creation + document upsert
 |  |- prompt.py              # System prompt for the assistant
 |  |- rag_pipeline.py        # Retriever + LLM RAG chain assembly
 |  |- webapp.py              # Flask app factory and routes
@@ -47,16 +46,17 @@ pip install -r requirements.txt
 ```
 
 
-### Create a `.env` file in the root directory and add your Pinecone & openai credentials as follows:
+### Create a `.env` file in the root directory and add your Groq settings:
 
 ```ini
-PINECONE_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+CHROMA_PERSIST_DIR = "chroma_db"
+CHROMA_COLLECTION = "medical-chatbot"
 ```
 
 
 ```bash
-# run the following command to store embeddings to pinecone
+# run the following command to store embeddings to ChromaDB
 python store_index.py
 ```
 
@@ -72,7 +72,7 @@ streamlit run streamlit_app.py
 ```
 
 The Streamlit app uses the same backend modules and includes a retrieval-only
-fallback if OpenAI generation is unavailable.
+fallback if Groq generation is unavailable.
 
 ### Streamlit Cloud Setup (Important)
 
@@ -82,21 +82,19 @@ fallback if OpenAI generation is unavailable.
 3. Add secrets in Streamlit Cloud settings:
 
 ```toml
-PINECONE_API_KEY="your_key"
-OPENAI_API_KEY="your_key"
+GROQ_API_KEY="your_key"
 ```
 
 4. Reboot the app after changing Main file path or secrets.
 
-### If you still see "Missing PINECONE_API_KEY"
+### If you still see "Missing GROQ_API_KEY"
 
 1. Open the app sidebar and expand "Key diagnostics".
-2. Confirm `secrets:any_alias:PINECONE_API_KEY` is `True`.
+2. Confirm `secrets:any_alias:GROQ_API_KEY` is `True`.
 3. If `False`, set secrets exactly as:
 
 ```toml
-PINECONE_API_KEY="your_pinecone_key"
-OPENAI_API_KEY="your_openai_key"
+GROQ_API_KEY="your_groq_key"
 ```
 
 4. Save secrets and reboot the app again.
@@ -113,8 +111,8 @@ open up localhost:
 - Python
 - LangChain
 - Flask
-- GPT
-- Pinecone
+- Groq
+- ChromaDB
 
 
 
@@ -185,16 +183,15 @@ open up localhost:
    - AWS_SECRET_ACCESS_KEY
    - AWS_DEFAULT_REGION
    - ECR_REPO
-   - PINECONE_API_KEY
-   - OPENAI_API_KEY
+	- GROQ_API_KEY
 ## Acknowledgments and Credits
 
 This project was built upon the foundational architecture and codebase provided by [entbappy](https://github.com/entbappy). 
 
 * **Original Project:** [Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS](https://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS)
 * Modifications made in this version include:
-  * Swapped original APIs for [insert your API choices].
+	* Swapped vector and LLM providers to ChromaDB + Groq.
   * Refactored frontend and backend logic.
-  * [Add any other major changes you made].
+	* Added retrieval-first fallback behavior when generation is unavailable.
 
 A huge thank you to the original author for providing a great starting point!

@@ -1,5 +1,7 @@
-from langchain_pinecone import PineconeVectorStore
-from pinecone import Pinecone, ServerlessSpec
+from pathlib import Path
+
+from chromadb import PersistentClient
+from langchain_chroma import Chroma
 
 from src.config import Settings
 from src.helper import (
@@ -16,31 +18,35 @@ def build_and_store_index(settings: Settings) -> None:
     text_chunks = text_split(filtered_data)
 
     embeddings = download_hugging_face_embeddings()
-    pc = Pinecone(api_key=settings.pinecone_api_key)
+    persist_dir = Path(settings.chroma_persist_dir)
+    persist_dir.mkdir(parents=True, exist_ok=True)
 
-    if not pc.has_index(settings.index_name):
-        pc.create_index(
-            name=settings.index_name,
-            dimension=384,
-            metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region="us-east-1"),
-        )
+    client = PersistentClient(path=str(persist_dir))
+    try:
+        client.delete_collection(name=settings.chroma_collection)
+    except Exception:
+        pass
 
-    PineconeVectorStore.from_documents(
-        documents=text_chunks,
-        index_name=settings.index_name,
-        embedding=embeddings,
+    vector_store = Chroma(
+        client=client,
+        collection_name=settings.chroma_collection,
+        embedding_function=embeddings,
     )
+    vector_store.add_documents(text_chunks)
 
 
 def is_index_ready(settings: Settings) -> bool:
-    pc = Pinecone(api_key=settings.pinecone_api_key)
-    if not pc.has_index(settings.index_name):
+    persist_dir = Path(settings.chroma_persist_dir)
+    if not persist_dir.exists():
         return False
 
-    stats = pc.Index(settings.index_name).describe_index_stats()
-    vector_count = stats.get("total_vector_count", 0)
-    return bool(vector_count and vector_count > 0)
+    client = PersistentClient(path=str(persist_dir))
+    try:
+        collection = client.get_collection(name=settings.chroma_collection)
+    except Exception:
+        return False
+
+    return collection.count() > 0
 
 
 def ensure_index_ready(settings: Settings) -> None:

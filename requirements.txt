@@ -3,8 +3,9 @@ flask==3.1.1
 sentence-transformers==4.1.0
 pypdf==5.6.1 
 python-dotenv==1.1.0
-langchain-pinecone==0.2.8 
-langchain-openai==0.3.24
+chromadb==0.5.23
+langchain-chroma==0.2.4
+langchain-groq==0.3.2
 langchain-community==0.3.26
 streamlit==1.44.1
 -e .

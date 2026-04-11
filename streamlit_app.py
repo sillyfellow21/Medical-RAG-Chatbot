@@ -12,17 +12,11 @@ APP_BUILD = "2026-04-09-auto-mode-1"
 
 
 SECRET_KEY_ALIASES = {
-    "PINECONE_API_KEY": [
-        "PINECONE_API_KEY",
-        "pinecone_api_key",
-        "PINECONE_KEY",
-        "pinecone_key",
-    ],
-    "OPENAI_API_KEY": [
-        "OPENAI_API_KEY",
-        "openai_api_key",
-        "OPENAI_KEY",
-        "openai_key",
+    "GROQ_API_KEY": [
+        "GROQ_API_KEY",
+        "groq_api_key",
+        "GROQ_KEY",
+        "groq_key",
     ],
 }
 
@@ -46,13 +40,10 @@ def _safe_streamlit_secrets():
 
 
 def load_session_keys_into_env() -> None:
-    pinecone_key = st.session_state.get("runtime_pinecone_key", "").strip()
-    openai_key = st.session_state.get("runtime_openai_key", "").strip()
+    groq_key = st.session_state.get("runtime_groq_key", "").strip()
 
-    if pinecone_key:
-        os.environ["PINECONE_API_KEY"] = pinecone_key
-    if openai_key:
-        os.environ["OPENAI_API_KEY"] = openai_key
+    if groq_key:
+        os.environ["GROQ_API_KEY"] = groq_key
 
 
 def load_streamlit_secrets_into_env() -> None:
@@ -82,8 +73,7 @@ def missing_key_message(exc: Exception) -> str:
     return (
         "Configuration issue: missing API keys.\n\n"
         "Add these in Streamlit Cloud -> App settings -> Secrets:\n\n"
-        "PINECONE_API_KEY=\"your_pinecone_key\"\n"
-        "OPENAI_API_KEY=\"your_openai_key\"\n\n"
+        "GROQ_API_KEY=\"your_groq_key\"\n\n"
         "Or use the sidebar Runtime Key Override for a "
         "temporary session fix.\n\n"
         f"Current error: {exc}"
@@ -99,26 +89,17 @@ def key_presence_diagnostics() -> dict[str, bool]:
         if str(value).strip():
             discovered.add(_norm_key(key))
 
-    pinecone_secret_found = any(
+    groq_secret_found = any(
         _norm_key(alias) in discovered
-        for alias in SECRET_KEY_ALIASES["PINECONE_API_KEY"]
-    )
-    openai_secret_found = any(
-        _norm_key(alias) in discovered
-        for alias in SECRET_KEY_ALIASES["OPENAI_API_KEY"]
+        for alias in SECRET_KEY_ALIASES["GROQ_API_KEY"]
     )
 
     diagnostics = {
         "secrets:available": bool(secrets),
-        "env:PINECONE_API_KEY": bool(os.environ.get("PINECONE_API_KEY", "")),
-        "env:OPENAI_API_KEY": bool(os.environ.get("OPENAI_API_KEY", "")),
-        "secrets:any_alias:PINECONE_API_KEY": pinecone_secret_found,
-        "secrets:any_alias:OPENAI_API_KEY": openai_secret_found,
-        "session:runtime_pinecone_key": bool(
-            st.session_state.get("runtime_pinecone_key", "").strip()
-        ),
-        "session:runtime_openai_key": bool(
-            st.session_state.get("runtime_openai_key", "").strip()
+        "env:GROQ_API_KEY": bool(os.environ.get("GROQ_API_KEY", "")),
+        "secrets:any_alias:GROQ_API_KEY": groq_secret_found,
+        "session:runtime_groq_key": bool(
+            st.session_state.get("runtime_groq_key", "").strip()
         ),
     }
     return diagnostics
@@ -157,7 +138,7 @@ def format_fallback_answer(docs) -> str:
         )
 
     return (
-        "OpenAI generation is currently unavailable. "
+        "Groq generation is currently unavailable. "
         "Here is relevant context from the medical knowledge base:\n\n"
         + "\n".join(snippets)
     )
@@ -172,7 +153,7 @@ def get_cached_retriever(settings: Settings):
 def get_runtime_components():
     load_streamlit_secrets_into_env()
     try:
-        settings = get_settings(require_openai=False)
+        settings = get_settings(require_groq=False)
     except Exception as exc:
         return None, None, None, exc
 
@@ -180,7 +161,7 @@ def get_runtime_components():
 
     rag_chain = None
     rag_chain_error = None
-    if settings.openai_api_key:
+    if settings.groq_api_key:
         try:
             rag_chain = build_rag_chain(settings, retriever=retriever)
         except Exception as exc:
@@ -214,7 +195,7 @@ def main() -> None:
         st.caption(f"Build: {APP_BUILD}")
         st.subheader("Run Checklist")
         st.markdown(
-            "1. Set PINECONE_API_KEY and OPENAI_API_KEY in Streamlit Secrets"
+            "1. Set GROQ_API_KEY in Streamlit Secrets"
         )
         st.markdown("   (use .env only for local runs)")
         st.markdown("2. Run: python store_index.py")
@@ -222,20 +203,14 @@ def main() -> None:
 
         st.subheader("Runtime Key Override")
         st.caption(
-            "If secrets are not detected, provide keys here for this "
+            "If secrets are not detected, provide a key here for this "
             "session only."
         )
         st.text_input(
-            "Pinecone API Key",
-            key="runtime_pinecone_key",
+            "Groq API Key",
+            key="runtime_groq_key",
             type="password",
-            placeholder="pcsk_...",
-        )
-        st.text_input(
-            "OpenAI API Key",
-            key="runtime_openai_key",
-            type="password",
-            placeholder="sk-...",
+            placeholder="gsk_...",
         )
         if st.button("Apply runtime keys"):
             load_session_keys_into_env()
@@ -290,7 +265,7 @@ def main() -> None:
                     return
                 if rag_chain_error is not None:
                     st.warning(
-                        "LLM generation is unavailable in this runtime. "
+                        "Groq generation is unavailable in this runtime. "
                         "Using retrieval-only fallback."
                     )
                 answer = generate_answer(question, retriever, rag_chain)

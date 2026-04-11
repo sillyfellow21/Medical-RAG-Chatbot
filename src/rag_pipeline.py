@@ -1,4 +1,4 @@
-from langchain_pinecone import PineconeVectorStore
+from langchain_chroma import Chroma
 
 from src.config import Settings
 from src.helper import download_hugging_face_embeddings
@@ -8,9 +8,10 @@ from src.prompt import system_prompt
 def build_retriever(settings: Settings):
     embeddings = download_hugging_face_embeddings()
 
-    docsearch = PineconeVectorStore.from_existing_index(
-        index_name=settings.index_name,
-        embedding=embeddings,
+    docsearch = Chroma(
+        collection_name=settings.chroma_collection,
+        embedding_function=embeddings,
+        persist_directory=settings.chroma_persist_dir,
     )
 
     retriever = docsearch.as_retriever(
@@ -30,14 +31,17 @@ def build_rag_chain(settings: Settings, retriever=None):
             create_stuff_documents_chain,
         )
         from langchain_core.prompts import ChatPromptTemplate
-        from langchain_openai import ChatOpenAI
+        from langchain_groq import ChatGroq
     except Exception as exc:
         raise RuntimeError(
             "LLM chain dependencies are incompatible with the current "
             "Python runtime. Use Python 3.11 or rely on retrieval fallback."
         ) from exc
 
-    chat_model = ChatOpenAI(model=settings.llm_model)
+    chat_model = ChatGroq(
+        model=settings.llm_model,
+        api_key=settings.groq_api_key,
+    )
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
