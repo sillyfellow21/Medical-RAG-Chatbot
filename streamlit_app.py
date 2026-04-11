@@ -161,7 +161,7 @@ def get_runtime_components():
     try:
         settings = get_settings(require_groq=False)
     except Exception as exc:
-        return None, None, None, exc
+        return None, None, None, None, exc
 
     retriever = get_cached_retriever(settings)
 
@@ -173,7 +173,7 @@ def get_runtime_components():
         except Exception as exc:
             rag_chain_error = exc
 
-    return retriever, rag_chain, rag_chain_error, None
+    return settings, retriever, rag_chain, rag_chain_error, None
 
 
 def generate_answer(question: str, retriever, rag_chain):
@@ -184,13 +184,15 @@ def generate_answer(question: str, retriever, rag_chain):
             response = rag_chain.invoke({"input": question})
             return str(response["answer"]), fallback_reason
         except Exception as exc:
+            error_name = exc.__class__.__name__
             if "timeout" in str(exc).lower():
                 fallback_reason = (
                     "Groq timed out. Showing retrieval fallback for speed."
                 )
             else:
                 fallback_reason = (
-                    "Groq generation failed. Showing retrieval fallback."
+                    f"Groq call failed ({error_name}). "
+                    "Showing retrieval fallback."
                 )
 
     docs = retriever.invoke(question)
@@ -266,6 +268,7 @@ def main() -> None:
         with st.spinner("Thinking..."):
             try:
                 (
+                    settings,
                     retriever,
                     rag_chain,
                     rag_chain_error,
@@ -278,6 +281,12 @@ def main() -> None:
                         {"role": "assistant", "content": answer}
                     )
                     return
+                if not settings.groq_api_key:
+                    st.warning(
+                        "GROQ_API_KEY is not detected in this app runtime. "
+                        "No calls are sent to Groq; "
+                        "retrieval-only mode is active."
+                    )
                 if rag_chain_error is not None:
                     st.warning(
                         "Groq generation is unavailable in this runtime. "
