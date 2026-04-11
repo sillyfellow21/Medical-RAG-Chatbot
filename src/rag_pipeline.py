@@ -5,6 +5,10 @@ from src.helper import download_hugging_face_embeddings
 from src.prompt import system_prompt
 
 
+GROQ_TIMEOUT_SECONDS = 15
+GROQ_MAX_RETRIES = 1
+
+
 def build_retriever(settings: Settings):
     embeddings = download_hugging_face_embeddings()
 
@@ -41,6 +45,8 @@ def build_rag_chain(settings: Settings, retriever=None):
     chat_model = ChatGroq(
         model=settings.llm_model,
         api_key=settings.groq_api_key,
+        timeout=GROQ_TIMEOUT_SECONDS,
+        max_retries=GROQ_MAX_RETRIES,
     )
     prompt = ChatPromptTemplate.from_messages(
         [

@@ -150,6 +150,12 @@ def get_cached_retriever(settings: Settings):
     return build_retriever(settings)
 
 
+@st.cache_resource(show_spinner=False)
+def get_cached_rag_chain(settings: Settings):
+    retriever = get_cached_retriever(settings)
+    return build_rag_chain(settings, retriever=retriever)
+
+
 def get_runtime_components():
     load_streamlit_secrets_into_env()
     try:
@@ -163,23 +169,32 @@ def get_runtime_components():
     rag_chain_error = None
     if settings.groq_api_key:
         try:
-            rag_chain = build_rag_chain(settings, retriever=retriever)
+            rag_chain = get_cached_rag_chain(settings)
         except Exception as exc:
             rag_chain_error = exc
 
     return retriever, rag_chain, rag_chain_error, None
 
 
-def generate_answer(question: str, retriever, rag_chain) -> str:
+def generate_answer(question: str, retriever, rag_chain):
+    fallback_reason = None
+
     if rag_chain is not None:
         try:
             response = rag_chain.invoke({"input": question})
-            return str(response["answer"])
-        except Exception:
-            pass
+            return str(response["answer"]), fallback_reason
+        except Exception as exc:
+            if "timeout" in str(exc).lower():
+                fallback_reason = (
+                    "Groq timed out. Showing retrieval fallback for speed."
+                )
+            else:
+                fallback_reason = (
+                    "Groq generation failed. Showing retrieval fallback."
+                )
 
     docs = retriever.invoke(question)
-    return format_fallback_answer(docs)
+    return format_fallback_answer(docs), fallback_reason
 
 
 def main() -> None:
@@ -268,7 +283,11 @@ def main() -> None:
                         "Groq generation is unavailable in this runtime. "
                         "Using retrieval-only fallback."
                     )
-                answer = generate_answer(question, retriever, rag_chain)
+                answer, fallback_reason = generate_answer(
+                    question, retriever, rag_chain
+                )
+                if fallback_reason:
+                    st.info(fallback_reason)
             except Exception as exc:
                 answer = (
                     "The app could not complete the request. "
