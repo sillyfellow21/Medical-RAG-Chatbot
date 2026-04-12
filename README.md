@@ -1,131 +1,113 @@
 # Medical RAG Chatbot
 
 <p align="center">
-  Professional medical document Q&A assistant powered by Groq and ChromaDB
+  Production-oriented medical document Q&A with retrieval-first grounding, Groq generation, and dual UI support (Streamlit + Flask).
 </p>
 
 <p align="center">
+  <a href="https://github.com/sillyfellow21/Medical-RAG-Chatbot">Repository</a>
+  ·
   <a href="https://medical-rag-chatbot-9n3fqenxcmlwuixpeszhs8.streamlit.app/">Live Streamlit App</a>
 </p>
 
-## Table of Contents
+## Problem Statement
 
-- [Overview](#overview)
-- [For Non-Technical Readers](#for-non-technical-readers)
-- [How It Works](#how-it-works)
-- [Architecture](#architecture)
-- [Key Features](#key-features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Local Setup](#local-setup)
-- [Deploy to Streamlit Cloud](#deploy-to-streamlit-cloud)
-- [Troubleshooting](#troubleshooting)
-- [Security and Privacy](#security-and-privacy)
-- [Optional AWS CI/CD Deployment](#optional-aws-cicd-deployment)
-- [Acknowledgments](#acknowledgments)
+Medical PDFs are dense, long, and difficult to search quickly during real-world usage.
+Traditional keyword search misses context, while direct LLM chat can hallucinate when not grounded in source material.
 
-## Overview
+This project solves that by implementing a Retrieval-Augmented Generation (RAG) workflow that:
+- Retrieves relevant content from a medical knowledge base first.
+- Generates responses grounded in retrieved evidence.
+- Falls back gracefully to retrieved snippets if model generation is unavailable.
 
-Medical RAG Chatbot is a retrieval-augmented assistant that answers questions
-from your medical PDF knowledge base.
+## Outcome
 
-It uses:
-- Groq for fast language model responses.
-- ChromaDB as a local vector database for semantic search.
-- Streamlit for an easy web interface.
-- Flask support for optional API/web runtime.
+The current solution delivers a practical, deployment-ready assistant with:
+- Grounded medical Q&A over indexed PDF content.
+- More reliable runtime behavior through explicit fallback paths.
+- Faster troubleshooting via runtime key diagnostics in the Streamlit sidebar.
+- Cloud-friendly deployment with clear secrets handling and reproducible setup.
 
-## For Non-Technical Readers
+Important: This tool supports information access and learning. It is not a substitute for professional medical advice, diagnosis, or treatment.
 
-Think of this app as a smart search assistant for a medical textbook:
+## Professional UI
 
-1. It reads and organizes the medical PDF into many searchable pieces.
-2. When you ask a question, it finds the most relevant pieces first.
-3. It uses those pieces to generate a focused answer.
-4. If the AI service is unavailable, it still shows relevant context from the
-   document so you are not blocked.
+This repository includes two interfaces so you can choose a professional experience based on your use case:
+- Streamlit UI for rapid product demo and cloud deployment.
+- Flask web UI for template-driven interface control.
 
-Important note:
-- This tool is for information support only.
-- It is not a replacement for professional medical advice or diagnosis.
+UI entry points:
+- Streamlit app: `streamlit_app.py`
+- Flask app: `app.py`
+- Flask template: `templates/chat.html`
+- Styling assets: `static/style.css`
 
-## How It Works
-
-1. Ingestion: PDF documents are loaded and split into chunks.
-2. Embedding: Chunks are converted into vector representations.
-3. Storage: Vectors are stored in a ChromaDB collection.
-4. Retrieval: Top relevant chunks are selected for each user question.
-5. Generation: Groq produces a concise answer grounded in retrieved context.
-
-## Architecture
+## Solution Architecture
 
 ```mermaid
 flowchart LR
-    A[Medical PDF] --> B[Chunk and Embed]
+    A[Medical PDF Files] --> B[Chunking and Embedding]
     B --> C[(ChromaDB)]
     Q[User Question] --> R[Retriever]
     R --> C
     C --> K[Top-k Context]
     K --> G[Groq Generation]
-    G --> O[Answer]
-    K --> F[Fallback Context Response]
+    G --> O[Final Answer]
+    G -->|Unavailable| F[Retrieval Fallback Answer]
 ```
 
-## Key Features
+## Core Features
 
-- Retrieval-first design for grounded answers.
-- Groq fail-fast behavior to reduce long wait times.
-- Automatic fallback response when generation is unavailable.
-- Streamlit runtime key diagnostics for easier setup.
-- Batched Chroma ingestion to avoid large-batch failures.
-- Single deployment branch (`main`) to reduce confusion.
+- Retrieval-first design to reduce ungrounded answers.
+- ChromaDB local vector store with persistent collection support.
+- Groq-backed answer generation with fail-fast fallback handling.
+- Streamlit runtime diagnostics for key presence and setup validation.
+- Batched ingestion pipeline to improve indexing stability.
+- Optional Flask runtime for template-based UI customization.
 
 ## Tech Stack
 
-- Python
+- Python 3.11
+- LangChain
+- ChromaDB
+- Groq
 - Streamlit
 - Flask
-- LangChain
-- Groq
-- ChromaDB
 - Sentence Transformers
 
 ## Project Structure
 
 ```text
-.
-|- app.py                    # Flask entrypoint (Streamlit-safe fallback)
-|- streamlit_app.py          # Streamlit entrypoint (recommended)
-|- store_index.py            # Build/update Chroma index
+my-custom-chatbot/
+|- app.py
+|- streamlit_app.py
+|- store_index.py
 |- src/
-|  |- config.py              # Environment and runtime settings
-|  |- helper.py              # Load/split/embed documents
-|  |- index_builder.py       # Chroma collection build and batching
-|  |- prompt.py              # System prompt template
-|  |- rag_pipeline.py        # Retriever and Groq answer flow
-|  |- webapp.py              # Flask app routes
-|- data/                     # PDF source files
-|- static/                   # UI assets
-|- templates/                # Flask templates
-|- requirements.txt          # Python dependencies
-|- runtime.txt               # Python runtime for Streamlit Cloud
+|  |- config.py
+|  |- helper.py
+|  |- index_builder.py
+|  |- prompt.py
+|  |- rag_pipeline.py
+|  |- webapp.py
+|- templates/
+|  |- chat.html
+|- static/
+|  |- style.css
+|- data/
+|- requirements.txt
+|- runtime.txt
 ```
 
-## Local Setup
+## Quick Start
 
-### Prerequisites
-
-- Python 3.11
-- Git
-
-### 1) Clone
+### 1) Clone repository
 
 ```bash
 git clone https://github.com/sillyfellow21/Medical-RAG-Chatbot.git
 cd Medical-RAG-Chatbot/my-custom-chatbot
 ```
 
-### 2) Create and activate environment
+### 2) Create virtual environment
 
 Windows (PowerShell):
 
@@ -149,7 +131,7 @@ pip install -r requirements.txt
 
 ### 4) Configure environment
 
-Create `.env` in `my-custom-chatbot/`:
+Create a `.env` file in the project root:
 
 ```ini
 GROQ_API_KEY="your_groq_api_key"
@@ -163,7 +145,7 @@ CHROMA_COLLECTION="medical-chatbot"
 python store_index.py
 ```
 
-### 6) Run app
+### 6) Run application
 
 Streamlit (recommended):
 
@@ -177,99 +159,48 @@ Flask (optional):
 python app.py
 ```
 
-## Deploy to Streamlit Cloud
+## Streamlit Cloud Deployment
 
-### Required settings
+Required configuration:
+- Repository: `sillyfellow21/Medical-RAG-Chatbot`
+- Branch: `main`
+- Main file path: `streamlit_app.py`
+- Runtime: defined in `runtime.txt`
 
-1. Repository: `sillyfellow21/Medical-RAG-Chatbot`
-2. Branch: `main`
-3. Main file path: `streamlit_app.py`
-4. Python runtime: from `runtime.txt` (`python-3.11`)
-
-### Secrets (Streamlit Cloud)
-
-Add in App Settings -> Secrets:
+Set secret in Streamlit App Settings -> Secrets:
 
 ```toml
 GROQ_API_KEY="your_groq_api_key"
 ```
 
-### After changes
-
-Always run:
-
+After updates, run:
 1. Clear cache
 2. Reboot app
 
+## Security
+
+- Never commit `.env` or API keys.
+- Store production keys in Streamlit Secrets or environment variables.
+- Rotate keys immediately if exposed.
+
 ## Troubleshooting
 
-### No calls visible in Groq console
+- Missing key errors:
+1. Confirm `GROQ_API_KEY` is set.
+2. Restart app after saving secrets.
 
-Possible reasons:
-- `GROQ_API_KEY` is not set in Streamlit Cloud Secrets.
-- Wrong Streamlit entrypoint is selected.
-- App is running fallback-only mode.
+- No model response:
+1. Verify key validity.
+2. Check sidebar diagnostics in Streamlit.
+3. App should return retrieval fallback snippets if generation is unavailable.
 
-Check in app sidebar:
-- Open `Key diagnostics` and confirm Groq key detection.
-- Verify warning messages about fallback mode.
-
-### App says "Missing GROQ_API_KEY"
-
-1. Add secret exactly as `GROQ_API_KEY`.
-2. Save secrets.
-3. Clear cache and reboot.
-
-### Slow responses / "Thinking" too long
-
-- First run may be slower due to warm-up and indexing.
-- If Groq times out, app falls back to retrieval snippets.
-
-### Batch size ValueError in Chroma
-
-- Fixed by batched ingestion in `src/index_builder.py`.
-- Pull latest `main`, then clear cache and rebuild index.
-
-### Entry file confusion
-
-- Streamlit Cloud main file must be `streamlit_app.py`.
-- `app.py` is primarily Flask runtime.
-
-## Security and Privacy
-
-- `.env` is git-ignored and should never be committed.
-- Keep API keys only in local `.env` or Streamlit Secrets.
-- Do not share keys in screenshots, logs, or chat.
-- If a key is exposed, rotate it immediately.
-
-## Optional AWS CI/CD Deployment
-
-This repo includes a GitHub Actions workflow for AWS container deployment.
-
-High-level flow:
-
-1. Build Docker image from source.
-2. Push image to Amazon ECR.
-3. Pull image on EC2 self-hosted runner.
-4. Run container with required environment variables.
-
-Typical GitHub Secrets:
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_DEFAULT_REGION`
-- `ECR_REPO`
-- `GROQ_API_KEY`
+- Slow first response:
+1. Initial embedding/index load may take longer.
+2. Subsequent queries are usually faster.
 
 ## Acknowledgments
 
-This project builds on the foundational architecture from:
+Based on and adapted from the original educational architecture:
+- https://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
 
-- Original project:
-  https://github.com/entbappy/Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
-
-Major updates in this version:
-
-- Migrated LLM and vector stack to Groq + ChromaDB.
-- Added Streamlit runtime diagnostics and fallback handling.
-- Improved deployment stability and branch consistency.
+This implementation modernizes the stack and deployment path with Groq + ChromaDB and a Streamlit-first delivery model.
